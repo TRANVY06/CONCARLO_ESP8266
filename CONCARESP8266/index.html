@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Điều Khiển Xe Wi-Fi</title>
+    <!-- Tải Tailwind CSS để tạo giao diện responsive và hiện đại -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ĐÃ SỬA LỖI: Tải Font Awesome 6.5.2 MỚI NHẤT, sửa lỗi cú pháp xintegrity thành integrity -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLMDJz9R3iWCRpS9wQ4vYfA8BfQ01x6A/wB7G3P1S3UaJ7L21q5o0k5L4Z7J3q8w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        /* Tùy chỉnh font Inter */
+        html { font-family: 'Inter', sans-serif; }
+        
+        /* Đảm bảo các nút hoạt động tốt trên thiết bị cảm ứng */
+        .control-button {
+            transition: background-color 0.1s ease, box-shadow 0.1s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        
+        /* Phong cách mới cho các nút điều khiển khi nhấn */
+        .control-button:active {
+            transform: none; 
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.8); /* Hiệu ứng lõm vào */
+            background-color: #0d0d0d; /* Nền rất tối khi nhấn */
+            color: #fff;
+        }
+
+        /* KHU VỰC D-PAD MỚI (HÌNH VUÔNG) */
+        .dpad-container {
+            position: relative;
+            max-width: 300px; /* Giới hạn kích thước D-Pad */
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            margin: auto;
+            background-color: #262626; /* Màu nền xám đậm bao quanh D-Pad */
+            border-radius: 8px; /* Bo góc nhẹ cho container vuông */
+            padding: 4px; /* Khoảng đệm nhỏ bên trong */
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Bố cục D-Pad 9 ô: Sử dụng Grid để định vị các nút */
+        .dpad-grid {
+            /* Bố cục tiêu chuẩn 3x3 */
+            grid-template-areas: 
+                "K F M" /* Tiến Xoay Trái (K) | Tiến (F) | Tiến Xoay Phải (M) */
+                "L S R" /* Xoay Trái (L) | Dừng (S) | Xoay Phải (R) */
+                "N B O"; /* Lùi Xoay Trái (N) | Lùi (B) | Lùi Xoay Phải (O) */
+
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 4px; /* Khoảng cách giữa các nút */
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Định vị và Màu sắc các nút */
+        .control-button {
+            background-color: #333333; /* Màu nền nút xám đậm */
+            border-radius: 4px; /* Bo góc nhẹ cho các nút */
+            color: #e0e0e0; /* Màu chữ/biểu tượng trắng sáng */
+            border: none; /* Loại bỏ border */
+            font-size: 2rem;
+            display: flex; /* Dùng flex để căn giữa icon */
+            align-items: center;
+            justify-content: center;
+            padding: 0; /* Bỏ padding mặc định */
+        }
+
+        /* Nút STOP ở giữa (Nổi bật) */
+        .dpad-grid button:nth-child(5) { 
+            background-color: #e30000; /* Đỏ tươi - STOP */ 
+            border-radius: 50%; /* Nút STOP tròn */
+            font-size: 1.8rem; /* Kích thước icon STOP nhỏ hơn chút */
+            color: #ffffff; /* Màu trắng cho biểu tượng STOP */
+        }
+        .dpad-grid button:nth-child(5):active {
+             background-color: #a00000; /* Đỏ đậm hơn khi nhấn */
+        }
+
+        /* Biểu tượng cho nút Tiến/Lùi Thẳng và 4 nút chéo */
+        .dpad-grid button i { 
+            font-size: 2.2rem; /* Kích thước icon thống nhất */
+        }
+
+        /* Điều chỉnh kích thước icon xoay để phù hợp */
+        .dpad-grid button[data-cmd="L"] i, .dpad-grid button[data-cmd="R"] i {
+            font-size: 2rem; /* Nhỏ hơn chút cho icon xoay */
+        }
+        
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col p-4">
+
+    <!-- Header --><header class="text-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">
+            <i class="fas fa-car mr-2 text-indigo-600"></i> Điều Khiển Xe Wi-Fi
+        </h1>
+    </header>
+
+    <!-- Cấu hình và Trạng thái --><div class="max-w-xl mx-auto w-full bg-white p-6 rounded-xl shadow-lg mb-6">
+        <label for="ipAddress" class="block text-sm font-medium text-gray-700 mb-1">
+            <i class="fas fa-network-wired mr-1"></i> Địa Chỉ IP của ESP8266 (Ví dụ: 192.168.1.100)
+        </label>
+        <input type="text" id="ipAddress" value="192.168.1.100" class="w-full border-gray-300 border rounded-lg p-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm" placeholder="Nhập địa chỉ IP...">
+        
+        <div class="mt-4 flex justify-between items-center">
+             <div class="flex items-center">
+                <i class="fas fa-gauge-high mr-2 text-green-600"></i>
+                <span class="text-sm font-medium text-gray-700">Tốc Độ Hiện Tại:</span>
+            </div>
+            <select id="speedSelect" class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2.5">
+                <option value="9">Tối Đa (1023)</option>
+                <option value="7" selected>Cao (890)</option>
+                <option value="5">Trung Bình (750)</option>
+                <option value="3">Thấp (610)</option>
+                <option value="0">Tối Thiểu (400)</option>
+            </select>
+        </div>
+
+        <p id="statusMessage" class="mt-4 text-center font-semibold text-sm h-5 text-gray-500"></p>
+    </div>
+
+    <!-- Khu Vực Điều Khiển Chính (D-Pad Hình Vuông) --><main class="flex-grow flex items-center justify-center">
+        <div class="w-full">
+            <div class="dpad-container"> 
+                <div class="dpad-grid grid w-full h-full">
+
+                    <!-- Hàng 1: TIẾN & XOAY (K, F, M) --><!-- 1. Tiến Xoay Trái (Forward Rotate Left - K) -->
+                    <button data-cmd="K" class="control-button">
+                        <i class="fas fa-arrow-up-left"></i> 
+                    </button>
+                    
+                    <!-- 2. Tiến (Forward - F) -->
+                    <button id="btn-F" data-cmd="F" class="control-button">
+                        <i class="fas fa-arrow-up"></i>
+                    </button>
+
+                    <!-- 3. Tiến Xoay Phải (Forward Rotate Right - M) -->
+                    <button data-cmd="M" class="control-button">
+                        <i class="fas fa-arrow-up-right"></i> 
+                    </button>
+
+                    <!-- Hàng 2: XOAY TẠI CHỖ (L, S, R) --><!-- 4. Xoay Trái tại chỗ (Go Left - L) -->
+                    <button data-cmd="L" class="control-button">
+                        <i class="fas fa-undo-alt"></i> <!-- Biểu tượng quay ngược -->
+                    </button>
+
+                    <!-- 5. DỪNG (STOP - S) -->
+                    <button id="btn-S" data-cmd="S" class="control-button">
+                        <i class="fas fa-stop"></i>
+                    </button>
+
+                    <!-- 6. Xoay Phải tại chỗ (Go Right - R) -->
+                    <button data-cmd="R" class="control-button">
+                        <i class="fas fa-redo-alt"></i> <!-- Biểu tượng quay xuôi -->
+                    </button>
+
+                    <!-- Hàng 3: LÙI & XOAY (N, B, O) --><!-- 7. Lùi Xoay Trái (Back Rotate Left - N) -->
+                    <button data-cmd="N" class="control-button">
+                        <i class="fas fa-arrow-down-left"></i> 
+                    </button>
+
+                    <!-- 8. Lùi (Back - B) -->
+                    <button id="btn-B" data-cmd="B" class="control-button">
+                        <i class="fas fa-arrow-down"></i>
+                    </button>
+                    
+                    <!-- 9. Lùi Xoay Phải (Back Rotate Right - O) -->
+                    <button data-cmd="O" class="control-button">
+                        <i class="fas fa-arrow-down-right"></i> 
+                    </button>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Lấy các tham chiếu đến các phần tử DOM
+        const ipInput = document.getElementById('ipAddress');
+        const statusMessage = document.getElementById('statusMessage');
+        const speedSelect = document.getElementById('speedSelect');
+        const controlButtons = document.querySelectorAll('.control-button');
+
+        // Biến lưu trữ trạng thái (dùng cho việc giữ nút)
+        let currentCommand = null;
+        let pressTimer = null;
+        let statusClearTimer = null; // Biến để quản lý việc tự động xóa trạng thái
+
+        // --- Hàm Gửi Lệnh Điều Khiển ---
+        function sendCommand(command) {
+            const ip = ipInput.value.trim();
+            if (!ip) {
+                updateStatus("⚠️ Vui lòng nhập địa chỉ IP của ESP8266.", 'text-red-500', false); // Không tự động xóa lỗi này
+                return;
+            }
+
+            const url = `http://${ip}/?State=${command}`;
+
+            // Cập nhật trạng thái ngay lập tức để người dùng biết lệnh đang được gửi
+            updateStatus(`⏳ Đang gửi lệnh: ${command} đến ${ip}...`, 'text-yellow-600', true); 
+            
+            // SỬ DỤNG XMLHttpRequest (XHR) ĐỂ TĂNG TÍNH TƯƠNG THÍCH VỚI MÔI TRƯỜNG LOCAL
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', url, true); // true cho asynchronous
+            
+            xhr.onload = function() {
+                // Xử lý khi yêu cầu hoàn thành (bao gồm cả lỗi 4xx, 5xx)
+                if (xhr.status === 0 || (xhr.status >= 200 && xhr.status < 400)) {
+                     // Cập nhật trạng thái hiển thị
+                    let statusText = `Gửi lệnh: ${command}`;
+                    
+                    // Nếu là lệnh tốc độ (0-9)
+                    if (!isNaN(parseInt(command)) && command.length === 1) {
+                         const speedValue = speedSelect.options[speedSelect.selectedIndex].text;
+                         statusText = `Thay đổi Tốc Độ: ${speedValue} (${command})`;
+                    }
+                    updateStatus(`✅ ${statusText}`, 'text-green-600', true);
+                } else {
+                    // Nếu server trả về lỗi HTTP (4xx, 5xx)
+                    updateStatus(`❌ Lỗi HTTP: ${xhr.status}`, 'text-red-500', false);
+                    console.error(`Lỗi HTTP khi gửi lệnh ${command}:`, xhr.status);
+                }
+            };
+            
+            xhr.onerror = function() {
+                // Xử lý lỗi mạng hoặc lỗi không thể kết nối
+                updateStatus(`❌ Lỗi kết nối hoặc IP sai! (Kiểm tra xem ESP đã bật và cùng mạng chưa)`, 'text-red-500', false);
+                console.error("Lỗi mạng/kết nối khi gửi lệnh:", command);
+            };
+
+            xhr.send();
+        }
+
+        // --- Hàm Cập Nhật Trạng Thái ---
+        function updateStatus(message, colorClass = 'text-gray-500', autoClear = false) {
+            // Xóa bộ đếm cũ
+            if (statusClearTimer) {
+                clearTimeout(statusClearTimer);
+                statusClearTimer = null;
+            }
+
+            statusMessage.textContent = message;
+            statusMessage.className = `mt-4 text-center font-semibold text-sm h-5 ${colorClass}`;
+
+            // Tự động xóa trạng thái nếu autoClear là true
+            if (autoClear) {
+                statusClearTimer = setTimeout(() => {
+                    statusMessage.textContent = '';
+                    statusMessage.className = `mt-4 text-center font-semibold text-sm h-5 text-gray-500`;
+                }, 3000); // Giữ tin nhắn 3 giây
+            }
+        }
+
+        // --- Logic Xử Lý Giữ và Nhả Nút ---
+
+        // 1. Nhấn Nút (touchstart/mousedown)
+        function handlePress(event) {
+            event.preventDefault(); // Ngăn chặn hành vi mặc định (như cuộn trên mobile)
+            
+            // Xóa lệnh dừng đang chờ
+            if (pressTimer) {
+                clearTimeout(pressTimer);
+            }
+
+            const button = event.currentTarget;
+            const command = button.getAttribute('data-cmd');
+
+            // Gửi lệnh khi bắt đầu nhấn
+            if (currentCommand !== command) {
+                currentCommand = command;
+                sendCommand(command);
+            }
+        }
+
+        // 2. Nhả Nút (touchend/mouseup/mouseleave)
+        function handleRelease(event) {
+            event.preventDefault(); // Ngăn chặn hành vi mặc định
+            
+            // Chỉ gửi lệnh STOP nếu lệnh trước đó KHÔNG phải là STOP hoặc lệnh Tốc độ
+            const isSpeedCommand = !isNaN(parseInt(currentCommand)) && currentCommand.length === 1;
+
+            if (currentCommand && currentCommand !== 'S' && !isSpeedCommand) {
+                
+                // Đặt thời gian chờ ngắn trước khi gửi lệnh STOP (S)
+                pressTimer = setTimeout(() => {
+                    sendCommand('S'); // Gửi lệnh DỪNG
+                    currentCommand = 'S';
+                    updateStatus("⏹️ Đã dừng xe (Lệnh S)", 'text-red-500', true); 
+                }, 50); // Độ trễ 50ms
+            }
+        }
+
+        // --- Gắn Sự Kiện Cho Các Nút Điều Khiển ---
+        controlButtons.forEach(button => {
+            // Sự kiện cho Desktop
+            button.addEventListener('mousedown', handlePress);
+            button.addEventListener('mouseup', handleRelease);
+            button.addEventListener('mouseleave', handleRelease);
+
+            // Sự kiện cho Mobile/Touch
+            button.addEventListener('touchstart', handlePress, { passive: false });
+            button.addEventListener('touchend', handleRelease, { passive: false });
+            button.addEventListener('touchcancel', handleRelease, { passive: false });
+        });
+
+        // --- Xử Lý Thay Đổi Tốc Độ ---
+        speedSelect.addEventListener('change', (event) => {
+            const speedCommand = event.target.value; // Lấy giá trị lệnh (0-9)
+            sendCommand(speedCommand);
+        });
+        
+        // --- Thiết lập mặc định khi tải trang ---
+        window.onload = () => {
+             // Tự động gửi lệnh tốc độ mặc định khi tải trang (ví dụ: lệnh '7' cho tốc độ 890)
+             // Đảm bảo lệnh này được gửi sau khi tất cả các tham chiếu DOM được thiết lập.
+             if(speedSelect.value) {
+                sendCommand(speedSelect.value); 
+             }
+             // Khuyến nghị sử dụng IP của ESP8266 đã kết nối
+             updateStatus(`🛠️ Sẵn sàng. Nhập IP và bắt đầu điều khiển.`, 'text-indigo-500', true);
+        };
+    </script>
+</body>
+</html>
